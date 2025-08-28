@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>D‑Day Widget</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --fg: #111111;
+      --accent: #5b8ef1;
+      --muted: #6b7280;
+      --radius: 16px;
+    }
+    .dark {
+      --bg: #0b0f17;
+      --fg: #e5e7eb;
+      --accent: #86b4ff;
+      --muted: #9aa4b2;
+    }
+    html, body {
+      height: 100%;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", "Apple SD Gothic Neo", "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      display: grid;
+      place-items: center;
+    }
+    .card {
+      width: min(540px, 95vw);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: 0 8px 30px rgba(0,0,0,.08);
+      background: linear-gradient(180deg, color-mix(in oklab, var(--bg) 85%, var(--accent) 15%), var(--bg));
+      border: 1px solid color-mix(in oklab, var(--accent) 20%, transparent);
+    }
+    .title {
+      margin: 0 0 8px;
+      font-size: clamp(16px, 3.5vw, 22px);
+      font-weight: 700;
+      line-height: 1.25;
+      letter-spacing: -0.01em;
+    }
+    .subtitle {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: clamp(12px, 2.5vw, 14px);
+    }
+    .d {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .d-badge {
+      font-weight: 800;
+      font-size: clamp(26px, 8vw, 44px);
+      padding-right: 8px;
+      letter-spacing: -0.02em;
+    }
+    .d-detail {
+      display: grid;
+      gap: 2px;
+      font-size: clamp(12px, 3vw, 14px);
+      color: var(--muted);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0,1fr));
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .cell {
+      text-align: center;
+      padding: 12px 8px;
+      border-radius: 12px;
+      background: color-mix(in oklab, var(--bg) 88%, var(--accent) 12%);
+      border: 1px solid color-mix(in oklab, var(--accent) 18%, transparent);
+    }
+    .cell .num {
+      font-size: clamp(18px, 6vw, 28px);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      display: block;
+    }
+    .cell .lab {
+      font-size: clamp(10px, 2.5vw, 12px);
+      color: var(--muted);
+      display: block;
+      margin-top: 2px;
+    }
+    .footer {
+      margin-top: 14px;
+      font-size: 11px;
+      color: var(--muted);
+      text-align: right;
+    }
+    a { color: var(--muted); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <h1 class="title" id="title">D‑Day</h1>
+    <p class="subtitle" id="subtitle"></p>
+
+    <div class="d">
+      <div class="d-badge" id="badge">D‑0</div>
+      <div class="d-detail" id="detail">
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="cell"><span class="num" id="days">0</span><span class="lab">Days</span></div>
+      <div class="cell"><span class="num" id="hours">0</span><span class="lab">Hours</span></div>
+      <div class="cell"><span class="num" id="mins">0</span><span class="lab">Minutes</span></div>
+      <div class="cell"><span class="num" id="secs">0</span><span class="lab">Seconds</span></div>
+    </div>
+
+    <div class="footer" id="footer"></div>
+  </div>
+
+  <script>
+    // Helper: parse query params
+    function getParams() {
+      const p = new URLSearchParams(location.search);
+      return {
+        title: p.get("title") || "D‑Day",
+        date: p.get("date"),               // ISO8601 e.g. 2025-10-01T00:00:00+09:00
+        theme: p.get("theme") || "light",  // light | dark
+        accent: p.get("accent") || "",     // e.g. #4f46e5
+        tz: p.get("tz") || "",             // e.g. Asia/Seoul
+        subtitle: p.get("subtitle") || "", // small text under title
+        compact: p.get("compact") === "1"  // more minimal padding
+      };
+    }
+
+    function formatDate(dt, tz) {
+      try {
+        const d = new Date(dt);
+        const opt = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+        return new Intl.DateTimeFormat('ko-KR', { ...opt, timeZone: tz || Intl.DateTimeFormat().resolvedOptions().timeZone }).format(d);
+      } catch (e) { return dt; }
+    }
+
+    const params = getParams();
+
+    // Apply theme & accent
+    if (params.theme === "dark") document.body.classList.add("dark");
+    if (params.accent) {
+      document.documentElement.style.setProperty("--accent", params.accent);
+    }
+    if (params.compact) {
+      document.getElementById("card").style.padding = "18px";
+    }
+
+    const titleEl = document.getElementById("title");
+    const subtitleEl = document.getElementById("subtitle");
+    titleEl.textContent = params.title;
+    if (params.subtitle) {
+      subtitleEl.textContent = params.subtitle;
+    } else {
+      subtitleEl.remove();
+    }
+
+    const badge = document.getElementById("badge");
+    const daysEl = document.getElementById("days");
+    const hoursEl = document.getElementById("hours");
+    const minsEl = document.getElementById("mins");
+    const secsEl = document.getElementById("secs");
+    const footer = document.getElementById("footer");
+
+    // Determine target date
+    let targetISO = params.date;
+    if (!targetISO) {
+      // Default: one month from now in Asia/Seoul
+      const now = new Date();
+      const monthLater = new Date(now.getTime());
+      monthLater.setMonth(monthLater.getMonth() + 1);
+      targetISO = monthLater.toISOString();
+    }
+    const target = new Date(targetISO);
+
+    function update() {
+      const now = new Date();
+      const diffMs = target.getTime() - now.getTime();
+      const sign = Math.sign(diffMs);
+      const abs = Math.abs(diffMs);
+
+      const totalSeconds = Math.floor(abs / 1000);
+      const days = Math.floor(totalSeconds / (60 * 60 * 24));
+      const hours = Math.floor((totalSeconds % (60 * 60 * 24)) / 3600);
+      const mins = Math.floor((totalSeconds % 3600) / 60);
+      const secs = totalSeconds % 60;
+
+      daysEl.textContent = days;
+      hoursEl.textContent = hours;
+      minsEl.textContent = mins;
+      secsEl.textContent = secs;
+
+      if (sign > 0) badge.textContent = "D‑" + days;
+      else if (sign === 0 || abs < 1000) badge.textContent = "D‑DAY";
+      else badge.textContent = "D+" + days;
+    }
+
+    update();
+    setInterval(update, 1000);
+  </script>
+</body>
+</html>
